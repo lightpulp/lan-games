@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>PAC-MAN Booth</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#000;color:#fff;font-family:"Courier New",monospace;touch-action:none;user-select:none;-webkit-user-select:none}
+.screen{display:none;height:100%;flex-direction:column;align-items:center;justify-content:center;padding:16px;text-align:center;overflow:auto}
+.screen.on{display:flex}
+h1{color:#ffe600;font-size:38px;letter-spacing:4px;margin:0 0 14px;text-shadow:0 0 12px #ffe60088}
+input{display:block;width:260px;margin:8px auto;padding:12px;font:inherit;font-size:18px;text-align:center;background:#111;color:#fff;border:2px solid #2b4bff;border-radius:8px}
+button{font:inherit;font-size:20px;font-weight:bold;padding:12px 34px;margin:10px;background:#ffe600;color:#000;border:0;border-radius:8px;cursor:pointer}
+#err{color:#f55;min-height:22px}
+table{border-collapse:collapse;margin:8px auto;min-width:290px}
+td,th{padding:4px 10px;text-align:left}th{color:#2b9cff}td:last-child,th:last-child{text-align:right}
+tr.me td{color:#ffe600;font-weight:bold}
+#hud{display:flex;justify-content:space-between;width:100%;padding:4px 10px;font-size:16px}
+#hud b{color:#ffe600}
+#game{padding:0;justify-content:flex-start}
+canvas{display:block;background:#000}
+.small{color:#888;font-size:13px}
+</style></head><body>
+
+<div id="login" class="screen on">
+  <h1>PAC-MAN</h1>
+  <input id="sid" placeholder="Student ID (24-2156-111)" maxlength="11" inputmode="numeric" autocomplete="off">
+  <input id="nm" placeholder="Your name" maxlength="24" autocomplete="off">
+  <div id="err"></div>
+  <button id="go">PLAY</button>
+</div>
+
+<div id="menu" class="screen">
+  <h1 id="menuTitle">PAC-MAN</h1>
+  <div id="menuMsg"></div>
+  <button id="play">START GAME</button>
+  <div class="small">Arrow keys / WASD, or swipe on a phone</div>
+  <div id="lb1"></div>
+  <div class="small"><a href="#" id="switch" style="color:#888">not you? switch player</a></div>
+</div>
+
+<div id="game" class="screen">
+  <div id="hud"><span>SCORE <b id="hs">0</b></span><span>LEVEL <b id="hl">1</b>/50</span><span>LIVES <b id="hv">3</b></span></div>
+  <canvas id="cv"></canvas>
+</div>
+
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const show=id=>{document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id==id))};
+let me=null; // {token,name,best}
+
+/* ---------- API / UI ---------- */
+async function api(path,body){
+  const r=await fetch(path,body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{});
+  const j=await r.json(); if(!r.ok)throw new Error(j.error||"error"); return j;
+}
+function renderLB(el,rows,mark){
+  const t=document.createElement("table");
+  t.innerHTML="<tr><th>#</th><th>NAME</th><th>LVL</th><th>SCORE</th></tr>";
+  rows.forEach((r,i)=>{const tr=document.createElement("tr");if(r.name==mark)tr.className="me";
+    [i+1,r.name,r.level,r.score].forEach(v=>{const td=document.createElement("td");td.textContent=v;tr.appendChild(td)});t.appendChild(tr)});
+  el.replaceChildren(t);
+}
+async function openMenu(msg){
+  $("menuTitle").textContent="HI, "+me.name.toUpperCase();
+  $("menuMsg").textContent=msg||("Your best: "+me.best);
+  show("menu");
+  try{renderLB($("lb1"),await api("/api/leaderboard"),me.name)}catch(e){}
+}
+$("sid").value=localStorage.pid||"";$("nm").value=localStorage.pname||"";
+$("sid").addEventListener("input",e=>{ // auto-dash 24-2156-111
+  const d=e.target.value.replace(/\D/g,"").slice(0,9);
+  e.target.value=[d.slice(0,2),d.slice(2,6),d.slice(6,9)].filter(Boolean).join("-");
+});
+$("go").onclick=async()=>{
+  try{
+    const j=await api("/api/login",{id:$("sid").value,name:$("nm").value});
+    me=j;localStorage.pid=$("sid").value;localStorage.pname=j.name;$("err").textContent="";openMenu();
+  }catch(e){$("err").textContent=e.message}
+};
+$("switch").onclick=e=>{e.preventDefault();show("login")};
+$("play").onclick=()=>startGame();
+
+/* ---------- maze (left half, mirrored) ---------- */
+const W=19,H=21;
+const HALF=["##########","#........#","#o##.###.#","#.........","#.##.#.###","#....#...#","####.###.#","   #.#....","####.#.##-",".......#  ","####.#.###","#.........","#.##.###.#","#o.#......","#.##.#.###","#....#....","##.#.#.###","#.##.#.###","#o..#.....","#.........","##########"];
+const MAP=HALF.map(r=>r+[...r.slice(0,9)].reverse().join(""));
+const DIRS=[{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+const wx=x=>((x%W)+W)%W;
+const free=(x,y)=>{if(y<0||y>=H)return false;const c=MAP[y][wx(x)];return c!="#"&&c!="-"};
+const home=[...Array(H)].map(()=>Array(W).fill(1e9)); // BFS distance to ghost door (for eyes)
+{const q=[[9,7]];home[7][9]=0;while(q.length){const[x,y]=q.shift();for(const d of DIRS){const nx=wx(x+d.x),ny=y+d.y;if(free(nx,ny)&&home[ny][nx]>home[y][x]+1){home[ny][nx]=home[y][x]+1;q.push([nx,ny])}}}}
+
+/* ---------- difficulty: level 1..50 ---------- */
+const diff=L=>({
+  gs:5+3*(L-1)/49,                 // ghost speed 5 -> 8 tiles/s (pacman is 7.5)
+  fr:Math.max(0,7-0.15*L),         // frightened seconds (almost none by ~L47)
+  sc:Math.max(1.5,7-0.12*L),       // scatter seconds
+  ch:20+0.5*L,                     // chase seconds
+  n:Math.min(4,2+Math.floor((L-1)/3)), // ghosts in play
+  acc:Math.min(1,0.45+0.03*L),     // how often ghosts pick the smart turn
+  rel:Math.max(0.4,3-0.05*L)       // seconds between ghost releases
+});
+const PSPEED=7.5,COLORS=["#ff2020","#ffb8ff","#00e5ff","#ffb852"],CORNERS=[[17,0],[1,0],[17,20],[1,20]];
+
+/* ---------- game state ---------- */
+const cv=$("cv"),ctx=cv.getContext("2d");let T=20;
+let g=null,last=0,raf=0;
+function resize(){const h=window.innerHeight-$("hud").offsetHeight-4;T=Math.max(10,Math.floor(Math.min(window.innerWidth/W,h/H)));cv.width=W*T;cv.height=H*T}
+addEventListener("resize",resize);
+
+function startGame(){
+  show("game");resize();
+  g={level:1,score:0,lives:3,extra:10000,submitted:false};
+  newLevel();cancelAnimationFrame(raf);last=performance.now();raf=requestAnimationFrame(loop);
+}
+function newLevel(){
+  g.grid=MAP.map(r=>[...r]);g.dots=0;
+  g.grid.forEach(r=>r.forEach(c=>{if(c=="."||c=="o")g.dots++}));
+  g.d=diff(g.level);resetPos();hud();
+}
+function resetPos(){
+  g.pac={x:9,y:15,dir:{x:0,y:0},next:null,mouth:0};
+  g.ghosts=[];
+  for(let i=0;i<g.d.n;i++)g.ghosts.push(i==0?{i,x:9,y:7,dir:{x:-1,y:0},state:"normal",t:0}
+    :{i,x:7+i,y:9,dir:{x:0,y:0},state:"house",t:i*g.d.rel});
+  g.phase="scatter";g.pt=g.d.sc;g.fr=0;g.chain=0;g.state="ready";g.st=2;
+}
+const hud=()=>{$("hs").textContent=g.score;$("hl").textContent=g.level;$("hv").textContent=g.lives};
+const add=n=>{g.score+=n;if(g.score>=g.extra){g.lives++;g.extra+=10000}hud()};
+
+/* movement along tile centres */
+function mv(e,d,ch){
+  while(d>1e-6){
+    const cx=Math.round(e.x),cy=Math.round(e.y);
+    if(Math.abs(e.x-cx)<1e-6&&Math.abs(e.y-cy)<1e-6){e.x=cx;e.y=cy;ch(e,cx,cy);if(!e.dir.x&&!e.dir.y)return}
+    const tx=e.dir.x>0?Math.floor(e.x+1e-6)+1:e.dir.x<0?Math.ceil(e.x-1e-6)-1:e.x;
+    const ty=e.dir.y>0?Math.floor(e.y+1e-6)+1:e.dir.y<0?Math.ceil(e.y-1e-6)-1:e.y;
+    const s=Math.min(d,Math.abs(tx-e.x)+Math.abs(ty-e.y));
+    e.x+=e.dir.x*s;e.y+=e.dir.y*s;d-=s;
+    if(e.x<=-1)e.x+=W;if(e.x>=W)e.x-=W;
+  }
+}
+function pch(e,cx,cy){
+  const n=e.next;if(n&&free(cx+n.x,cy+n.y))e.dir=n;
+  if(!free(cx+e.dir.x,cy+e.dir.y))e.dir={x:0,y:0};
+  const c=g.grid[cy][cx];
+  if(c=="."||c=="o"){
+    g.grid[cy][cx]=" ";g.dots--;add(c=="."?10:50);
+    if(c=="o"&&g.d.fr>0){g.fr=g.d.fr;g.chain=0;g.ghosts.forEach(k=>{if(k.state=="normal"){k.state="fright";k.dir={x:-k.dir.x,y:-k.dir.y}}})}
+    if(g.dots==0){g.state="clear";g.st=1.6;submit()}
+  }
+}
+function gch(k,cx,cy){
+  const rev={x:-k.dir.x,y:-k.dir.y},moving=k.dir.x||k.dir.y;
+  let o=DIRS.filter(d=>free(cx+d.x,cy+d.y)&&!(moving&&d.x==rev.x&&d.y==rev.y));
+  if(!o.length)o=[rev];
+  let pick;
+  if(k.state=="eyes"){
+    if(home[cy][cx]==0){k.state="house";k.x=9;k.y=9;k.dir={x:0,y:0};k.t=1.2;return}
+    pick=o.reduce((a,b)=>home[cy+b.y][wx(cx+b.x)]<home[cy+a.y][wx(cx+a.x)]?b:a);
+  }else if(k.state=="fright"||Math.random()>g.d.acc){pick=o[Math.random()*o.length|0]}
+  else{
+    const p=g.pac,pd=p.dir.x||p.dir.y?p.dir:{x:-1,y:0};let tx,ty;
+    if(g.phase=="scatter"){[tx,ty]=CORNERS[k.i]}
+    else if(k.i==0){tx=p.x;ty=p.y}
+    else if(k.i==1){tx=p.x+pd.x*4;ty=p.y+pd.y*4}
+    else if(k.i==2){const b=g.ghosts[0];tx=2*(p.x+pd.x*2)-b.x;ty=2*(p.y+pd.y*2)-b.y}
+    else{if(Math.hypot(p.x-k.x,p.y-k.y)>8){tx=p.x;ty=p.y}else[tx,ty]=CORNERS[3]}
+    const sc=d=>{const dx=wx(cx+d.x)-tx,dy=cy+d.y-ty;return dx*dx+dy*dy};
+    pick=o.reduce((a,b)=>sc(b)<sc(a)?b:a);
+  }
+  k.dir=pick;
+}
+
+function update(dt){
+  if(g.state!="play"){
+    g.st-=dt;
+    if(g.st<=0){
+      if(g.state=="ready")g.state="play";
+      else if(g.state=="dying"){if(g.lives<=0)return gameOver(false);resetPos()}
+      else if(g.state=="clear"){if(g.level>=50)return gameOver(true);g.level++;newLevel()}
+    }
+    return;
+  }
+  const p=g.pac;
+  if(p.next&&(p.dir.x||p.dir.y)&&p.next.x==-p.dir.x&&p.next.y==-p.dir.y)p.dir=p.next; // instant reverse
+  mv(p,PSPEED*dt,pch);p.mouth+=dt;
+  if(g.state!="play")return;
+  g.pt-=dt;if(g.pt<=0){g.phase=g.phase=="scatter"?"chase":"scatter";g.pt=g.phase=="scatter"?g.d.sc:g.d.ch}
+  if(g.fr>0){g.fr-=dt;if(g.fr<=0)g.ghosts.forEach(k=>{if(k.state=="fright")k.state="normal"})}
+  for(const k of g.ghosts){
+    if(k.state=="house"){
+      k.t-=dt;k.y=9+Math.sin(performance.now()/150+k.i)*0.15;
+      if(k.t<=0){k.x=9;k.y=7;k.dir={x:Math.random()<.5?1:-1,y:0};k.state=g.fr>0?"fright":"normal"}
+      continue;
+    }
+    mv(k,(k.state=="eyes"?13:k.state=="fright"?g.d.gs*0.55:g.d.gs)*dt,gch);
+    let dx=Math.abs(k.x-p.x);if(dx>W/2)dx=W-dx;
+    if(Math.hypot(dx,k.y-p.y)<0.6){
+      if(k.state=="fright"){k.state="eyes";g.chain++;add(100*2**g.chain)}
+      else if(k.state=="normal"){g.state="dying";g.st=1.6;g.lives--;hud();submit();return}
+    }
+  }
+}
+
+/* ---------- drawing ---------- */
+function draw(){
+  ctx.fillStyle="#000";ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.lineWidth=Math.max(2,T/7);ctx.lineCap="round";
+  const flash=g.state=="clear"&&Math.floor(g.st*5)%2==0;
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const c=MAP[y][x],X=x*T,Y=y*T;
+    if(c=="#"){
+      ctx.fillStyle="#050530";ctx.fillRect(X,Y,T,T);ctx.strokeStyle=flash?"#fff":"#2b4bff";ctx.beginPath();
+      const w=(dx,dy)=>{const nx=x+dx,ny=y+dy;return nx<0||nx>=W||ny<0||ny>=H||MAP[ny][nx]=="#"};
+      if(!w(0,-1)){ctx.moveTo(X,Y+1);ctx.lineTo(X+T,Y+1)}
+      if(!w(0,1)){ctx.moveTo(X,Y+T-1);ctx.lineTo(X+T,Y+T-1)}
+      if(!w(-1,0)){ctx.moveTo(X+1,Y);ctx.lineTo(X+1,Y+T)}
+      if(!w(1,0)){ctx.moveTo(X+T-1,Y);ctx.lineTo(X+T-1,Y+T)}
+      ctx.stroke();
+    }else if(c=="-"){ctx.fillStyle="#ffb8ff";ctx.fillRect(X,Y+T/2-2,T,4)}
+    const d=g.grid[y][x];
+    if(d=="."){ctx.fillStyle="#ffd9a0";ctx.beginPath();ctx.arc(X+T/2,Y+T/2,T*.1,0,7);ctx.fill()}
+    else if(d=="o"&&(g.state!="play"||Math.floor(performance.now()/250)%2)){ctx.fillStyle="#ffd9a0";ctx.beginPath();ctx.arc(X+T/2,Y+T/2,T*.3,0,7);ctx.fill()}
+  }
+  // ghosts
+  if(g.state!="dying"||g.st>1)for(const k of g.ghosts){
+    const X=(k.x+.5)*T,Y=(k.y+.5)*T,r=T*.45;
+    if(k.state!="eyes"){
+      ctx.fillStyle=k.state=="fright"?(g.fr<2&&Math.floor(g.fr*5)%2?"#fff":"#2233ff"):COLORS[k.i];
+      ctx.beginPath();ctx.arc(X,Y-r*.1,r,Math.PI,0);ctx.lineTo(X+r,Y+r);
+      const f=Math.floor(performance.now()/120)%2;
+      for(let i=0;i<4;i++)ctx.lineTo(X+r-(i+.5)*r/2,Y+r-(i+f)%2*r*.3);
+      ctx.lineTo(X-r,Y+r);ctx.fill();
+    }
+    const dx=k.dir.x*r*.15,dy=k.dir.y*r*.15;
+    if(k.state=="fright"){ctx.fillStyle="#fcc";ctx.fillRect(X-r*.45,Y-r*.2,r*.25,r*.25);ctx.fillRect(X+r*.2,Y-r*.2,r*.25,r*.25)}
+    else for(const s of[-1,1]){ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(X+s*r*.4,Y-r*.2,r*.28,0,7);ctx.fill();
+      ctx.fillStyle="#22f";ctx.beginPath();ctx.arc(X+s*r*.4+dx,Y-r*.2+dy,r*.14,0,7);ctx.fill()}
+  }
+  // pacman
+  const p=g.pac,X=(p.x+.5)*T,Y=(p.y+.5)*T,r=T*.46;
+  const ang=Math.atan2(p.dir.y||0,p.dir.x||(p.dir.y?0:1));
+  let m=(p.dir.x||p.dir.y)||g.state=="ready"?Math.abs(Math.sin(p.mouth*14))*.3*Math.PI+.03:.25*Math.PI;
+  if(g.state=="dying")m=Math.min(Math.PI,(1.6-g.st)*Math.PI*1.3);
+  if(g.state=="dying"&&g.st<.2){}else{
+    ctx.fillStyle="#ffe600";ctx.beginPath();ctx.moveTo(X,Y);ctx.arc(X,Y,r,ang+m,ang+2*Math.PI-m);ctx.fill()}
+  // banners
+  ctx.textAlign="center";ctx.font="bold "+T*1.1+"px Courier New";
+  if(g.state=="ready"){ctx.fillStyle="#ffe600";ctx.fillText("LEVEL "+g.level,cv.width/2,11.6*T);ctx.fillText("READY!",cv.width/2,13.4*T)}
+  if(g.state=="clear"&&g.level>=50){ctx.fillStyle="#0f0";ctx.fillText("YOU BEAT ALL 50!",cv.width/2,11.6*T)}
+}
+function loop(t){
+  const dt=Math.min(.05,(t-last)/1000);last=t;
+  if(g.state!="over"){update(dt);if(g.state!="over")draw()}
+  if(g.state!="over")raf=requestAnimationFrame(loop);
+}
+
+/* ---------- submit / end ---------- */
+async function submit(){
+  try{const r=await api("/api/score",{token:me.token,score:g.score,level:g.level});me.best=r.best;return r}catch(e){}
+}
+async function gameOver(win){
+  g.state="over";cancelAnimationFrame(raf);
+  const r=await submit();
+  openMenu((win?"YOU BEAT ALL 50 LEVELS! ":"GAME OVER  ")+"Score "+g.score+" (level "+g.level+")"+(r?"  Rank #"+r.rank:""));
+}
+
+/* ---------- input ---------- */
+const KEYS={ArrowRight:0,ArrowLeft:1,ArrowDown:2,ArrowUp:3,d:0,a:1,s:2,w:3,D:0,A:1,S:2,W:3};
+addEventListener("keydown",e=>{
+  if(!g||!$("game").classList.contains("on")||!(e.key in KEYS))return;
+  e.preventDefault();g.pac.next=DIRS[KEYS[e.key]];
+});
+let sx=0,sy=0;
+const gm=$("game");
+gm.addEventListener("touchstart",e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;e.preventDefault()},{passive:false});
+gm.addEventListener("touchmove",e=>{
+  e.preventDefault();if(!g)return;
+  const dx=e.touches[0].clientX-sx,dy=e.touches[0].clientY-sy;
+  if(Math.max(Math.abs(dx),Math.abs(dy))<22)return;
+  g.pac.next=Math.abs(dx)>Math.abs(dy)?DIRS[dx>0?0:1]:DIRS[dy>0?2:3];
+  sx=e.touches[0].clientX;sy=e.touches[0].clientY;
+},{passive:false});
+</script></body></html>

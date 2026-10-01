@@ -1,0 +1,26 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Quiz</title><link rel="stylesheet" href="common.css"><style>#app{max-width:640px;margin:0 auto;padding:14px;text-align:center}#err{color:#f66;min-height:22px}</style></head><body>
+<div id="app"></div><script src="shared.js"></script><script>
+let tok=localStorage.ktok||"",st=null,t0=0,sig="",mode="";
+const app=$("#app");
+function loginView(msg){mode="login";sig="";app.innerHTML=`<h1>QUIZ TIME</h1><input id="sid" placeholder="Student ID (24-2156-111)" maxlength="11" inputmode="numeric" value="${esc(localStorage.pid||"")}"><input id="nm" placeholder="Your name" maxlength="24" value="${esc(localStorage.pname||"")}"><div id="err">${esc(msg||"")}</div><button id="go">JOIN</button>`;
+  $("#sid").oninput=e=>{const d=e.target.value.replace(/\D/g,"").slice(0,9);e.target.value=[d.slice(0,2),d.slice(2,6),d.slice(6,9)].filter(Boolean).join("-")};
+  $("#go").onclick=async()=>{try{const j=await api("/api/login",{id:$("#sid").value,name:$("#nm").value});tok=j.token;localStorage.ktok=tok;localStorage.pid=$("#sid").value;localStorage.pname=$("#nm").value}catch(e){$("#err").textContent=e.message}}}
+async function poll(){
+  try{st=await api("/api/state?token="+encodeURIComponent(tok));t0=performance.now();render()}catch(e){}
+  setTimeout(poll,800)}
+function render(){
+  if(!st.me){if(mode!="login")loginView(tok?"Please sign in again":"");return}
+  const s=st,m=s.me,q=s.question,sg=[s.phase,s.q,m.choice,m.pts,m.rank,s.phase=="lobby"?s.players:""].join("|");
+  if(sg==sig)return;sig=sg;mode="game";let h="";
+  if(s.phase=="lobby")h=`<h2>You're in, ${esc(m.name)}!</h2><p>Waiting for the host to start…<br>${s.players} player(s) joined</p>`;
+  else if(s.phase=="question")h=`<div class="bar" id="bar"><i></i></div><h2>${esc(q.text)}</h2>${imgTag(q)}${optsHtml(q,m.choice?"show":"btn",m.choice)}<p>${m.choice?"Locked in! Waiting for the others…":"Tap your answer — faster = more points"}</p>`;
+  else if(s.phase=="reveal"||s.phase=="leaderboard"&&q){const ok=m.pts>0;
+    h=(s.phase=="reveal"?`<h2>${esc(q.text)}</h2>${imgTag(q)}${optsHtml(q,"show")}<h1>${m.choice?(ok?"✔ Correct! +"+m.pts:"✘ Wrong"):"⏱ No answer"}</h1>`:"")+`<p>Score <b>${m.score}</b> · Rank <b>#${m.rank}</b></p>`+(s.phase=="leaderboard"?boardTable(s.board.slice(0,5),m.name):"")}
+  else{h=`<h1>${s.phase=="ended"?"FINAL RESULTS":"LEADERBOARD"}</h1>`+boardTable(s.board.slice(0,5),m.name)+`<p>You: <b>#${m.rank}</b> · ${m.score} pts</p>`}
+  app.innerHTML=h;
+  app.querySelectorAll("button.opt").forEach(b=>{if(!b.disabled)b.onclick=async()=>{st.me.choice=b.dataset.c;sig="";render();try{await api("/api/answer",{token:tok,choice:b.dataset.c})}catch(e){}}});
+}
+animBar(()=>st&&st.question&&st.question.dur?(st.question.left-(performance.now()-t0)/1000)/st.question.dur:0);
+loginView();poll();
+</script></body></html>

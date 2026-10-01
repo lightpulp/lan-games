@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>PAC-MAN Leaderboard</title>
+<style>
+body{margin:0;background:#000;color:#fff;font-family:"Courier New",monospace;text-align:center}
+h1{color:#ffe600;font-size:5vh;letter-spacing:.5vh;margin:2vh 0}
+table{margin:0 auto;border-collapse:collapse;font-size:3.4vh;min-width:70vw}
+th{color:#2b9cff;text-align:left;padding:.6vh 2vw}td{padding:.6vh 2vw;text-align:left}
+td:nth-child(3),td:nth-child(4),th:nth-child(3),th:nth-child(4){text-align:right}
+tr:nth-child(2) td{color:#ffd700}tr:nth-child(3) td{color:#c0c0c0}tr:nth-child(4) td{color:#cd7f32}
+</style></head><body>
+<h1>&#9679; PAC-MAN LEADERBOARD &#9679;</h1>
+<table id="t"></table>
+<script>
+async function tick(){
+  try{
+    const rows=await (await fetch("/api/leaderboard")).json();
+    const t=document.getElementById("t");
+    t.innerHTML="<tr><th>#</th><th>NAME</th><th>LEVEL</th><th>SCORE</th></tr>";
+    rows.forEach((r,i)=>{const tr=t.insertRow();[i+1,r.name,r.level,r.score].forEach(v=>tr.insertCell().textContent=v)});
+  }catch(e){}
+}
+tick();setInterval(tick,3000);
+</script></body></html>

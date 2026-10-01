@@ -1,0 +1,20 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Leaderboard</title><link rel="stylesheet" href="common.css">
+<style>body{font-family:"Courier New",monospace;text-align:center}#app{padding:2vh 3vw}h1{font-size:5vh;letter-spacing:.5vh;margin:1vh 0}h2{font-size:4vh}
+table{font-size:3.6vh;max-width:75vw}.opt{font-size:3vh}.qimg{max-height:34vh}p{font-size:2.6vh}
+tr:nth-child(2) td{color:#ffd700}tr:nth-child(3) td{color:#c0c0c0}tr:nth-child(4) td{color:#cd7f32}tr.me td{color:inherit}</style></head><body>
+<div id="app"></div><script src="qrcode.js"></script><script src="shared.js"></script><script>
+let st=null,t0=0,sig="";
+async function poll(){try{st=await api("/api/state");t0=performance.now();render()}catch(e){}setTimeout(poll,800)}
+function render(){
+  const s=st,q=s.question,sg=[s.phase,s.q,s.phase=="lobby"?s.players:"",s.phase!="question"?JSON.stringify(s.board)+JSON.stringify(q&&q.counts):""].join("|");
+  if(sg!=sig){sig=sg;let h="";
+    if(s.phase=="lobby"){h=`<h1>● ${esc(s.title)} ●</h1><div id="qr"></div><h2>${s.players} player(s) joined</h2><p>${(s.names||[]).map(esc).join(" · ")}</p>`;app().innerHTML=h;joinPanel($("#qr")).catch(()=>{});return}
+    if(s.phase=="question"||s.phase=="reveal"||s.phase=="leaderboard"&&false)h=`<p>Question ${s.q+1} / ${s.total}</p>${s.phase=="question"?'<div class="bar" id="bar"><i></i></div>':""}<h2>${esc(q.text)}</h2>${imgTag(q)}${optsHtml(q,"show")}<p id="cnt"></p>`;
+    else h=`<h1>${s.phase=="ended"?"★ FINAL RESULTS ★":"● LEADERBOARD ●"}</h1>${boardTable(s.board)}`;
+    app().innerHTML=h}
+  const c=$("#cnt");if(c&&s.phase=="question")c.textContent=`${s.answered} / ${s.players} answered`;
+}
+const app=()=>$("#app");
+animBar(()=>st&&st.question&&st.question.dur?(st.question.left-(performance.now()-t0)/1000)/st.question.dur:0);
+poll();
+</script></body></html>

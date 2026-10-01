@@ -1,0 +1,8 @@
+{
+  "title": "College Quiz Booth",
+  "ssid": "MSD-GeneralAssembly",
+  "password": "ThisIsNotASecurePasswordw",
+  "security": "WPA",
+  "port": 80,
+  "host_ip": ""
+}

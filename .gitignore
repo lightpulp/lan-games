@@ -1,0 +1,3 @@
+#ignore data.json to not show player data in the repository
+kahoots/data.json
+pacman/data.json

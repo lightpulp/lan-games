@@ -1,0 +1,52 @@
+{
+  "question1": {
+    "Question": "What is 1 + 1?",
+    "a": "2",
+    "b": "3",
+    "c": "4",
+    "d": "5",
+    "answer": "A",
+    "image": "images/q1.svg",
+    "time": 15
+  },
+  "question2": {
+    "Question": "Which planet is known as the Red Planet?",
+    "a": "Venus",
+    "b": "Mars",
+    "c": "Jupiter",
+    "d": "Saturn",
+    "answer": "B",
+    "image": "images/q2.svg",
+    "time": 15
+  },
+  "question3": {
+    "Question": "What does CPU stand for?",
+    "a": "Central Process Unit",
+    "b": "Computer Personal Unit",
+    "c": "Central Processing Unit",
+    "d": "Core Power Unit",
+    "answer": "C",
+    "image": "images/q3.svg",
+    "time": 15
+  },
+  "question4": {
+    "Question": "Which language runs in every web browser?",
+    "a": "Python",
+    "b": "C++",
+    "c": "Java",
+    "d": "JavaScript",
+    "answer": "D",
+    "image": "images/q4.svg",
+    "time": 15
+  },
+  "question5": {
+    "Question": "What is the chemical symbol for water?",
+    "a": "H2O",
+    "b": "CO2",
+    "c": "O2",
+    "d": "NaCl",
+    "answer": "A",
+    "image": "images/q5.svg",
+    "time": 15
+  }
+}

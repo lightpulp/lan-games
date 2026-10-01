@@ -1,0 +1,31 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Host</title><link rel="stylesheet" href="common.css">
+<style>#top{display:flex;gap:14px;align-items:center;padding:10px 16px;background:#14143a}#top b{color:#ffe600}#wrap{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;padding:16px}
+@media(max-width:900px){#wrap{grid-template-columns:1fr}}.card{background:#14143a;border-radius:12px;padding:14px}.ctl{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:10px}
+select{font:inherit;padding:8px;background:#222;color:#fff;border-radius:6px;max-width:100%}.pl{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #2a2a55}.pl button{padding:0 8px}</style></head><body>
+<div id="top"><b style="font-size:20px">HOST</b><span id="ph"></span><span id="qn"></span><span id="tm"></span><span id="ans"></span></div>
+<div id="wrap"><div><div class="card" id="cur"></div>
+<div class="card ctl" style="margin-top:12px" id="ctl"></div></div>
+<div><div class="card" id="join"></div><div class="card" style="margin-top:12px"><b>Players (<span id="np">0</span>)</b><div id="pl"></div></div></div></div>
+<script src="qrcode.js"></script><script src="shared.js"></script><script>
+const KEY=new URLSearchParams(location.search).get("key")||localStorage.hkey||"";localStorage.hkey=KEY;
+let st=null,t0=0,sig="";
+const act=async(action,value)=>{try{await api("/api/host",{key:KEY,action,value});load()}catch(e){alert(e.message)}};
+const B=[["◀ Prev (←)","prev"],["Next ▶ (→)","next"],["Reveal answer","reveal"],["Leaderboard","board"],["Replay question","replay"],["+5 seconds","extend"],["Back to lobby","lobby"],["Final podium","end"],["Reload questions.json","reload"],["Reset scores","reset","Reset all scores?"],["Wipe players","wipe","Remove ALL players and scores?"]];
+$("#ctl").innerHTML=B.map((b,i)=>`<button class="${i>5?"alt":""}" data-i="${i}">${b[0]}</button>`).join("")+`<select id="jump"></select>`;
+document.querySelectorAll("#ctl button").forEach(b=>b.onclick=()=>{const d=B[b.dataset.i];if(!d[2]||confirm(d[2]))act(d[1])});
+$("#jump").onchange=e=>{if(e.target.value!=="")act("goto",+e.target.value);e.target.value=""};
+addEventListener("keydown",e=>{if(e.target.tagName=="SELECT")return;if(e.key=="ArrowRight")act("next");if(e.key=="ArrowLeft")act("prev")});
+async function load(){try{st=await api("/api/host/state?key="+KEY);t0=performance.now();render()}catch(e){$("#cur").innerHTML="<h2>Bad host key</h2><p>Open the host URL printed in the server console.</p>"}}
+function render(){const s=st,q=s.question;
+  $("#ph").textContent=s.phase.toUpperCase();$("#qn").textContent=s.q>=0&&s.phase!="ended"?`Q ${s.q+1}/${s.total}`:`${s.total} questions`;
+  $("#ans").textContent=q?`${s.answered}/${s.players} answered`:"";$("#np").textContent=s.players;
+  const sg=[s.phase,s.q,s.titles.length,s.list.map(p=>p.id+p.score).join()].join("|");if(sg==sig)return;sig=sg;
+  $("#cur").innerHTML=q?`<small>Question ${s.q+1} · correct answer highlighted (host only)</small><h2 style="margin:6px 0">${esc(q.text)}</h2>${imgTag(q)}${optsHtml(q,"show")}`:`<h2>${s.phase=="ended"?"Game finished":"Lobby — waiting to start"}</h2><p>Press <b>Next ▶</b> to start question 1.</p>`;
+  $("#jump").innerHTML=`<option value="">Jump to question…</option>`+s.titles.map((t,i)=>`<option value="${i}">${i+1}. ${esc(t).slice(0,40)}</option>`).join("");
+  $("#pl").innerHTML=s.list.map(p=>`<div class="pl"><span>${esc(p.name)} · ${p.score}</span><button class="alt" data-id="${esc(p.id)}">✕</button></div>`).join("");
+  document.querySelectorAll("#pl button").forEach(b=>b.onclick=()=>confirm("Kick player?")&&act("kick",b.dataset.id));
+}
+setInterval(()=>{if(st&&st.question&&st.question.left!=null)$("#tm").textContent="⏱ "+Math.max(0,st.question.left-(performance.now()-t0)/1000).toFixed(1)+"s";else $("#tm").textContent=""},100);
+setInterval(load,1000);load();
+joinPanel($("#join")).then(i=>{if(i.ips.length>1){const sel=document.createElement("select");sel.innerHTML=i.ips.map(x=>`<option>${x}</option>`).join("");sel.onchange=()=>joinPanel($("#join"),sel.value).then(()=>$("#join").appendChild(sel));$("#join").appendChild(sel)}}).catch(()=>{});
+</script></body></html>
