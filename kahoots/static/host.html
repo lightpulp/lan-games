@@ -6,7 +6,7 @@ select{font:inherit;padding:8px;background:#222;color:#fff;border-radius:6px;max
 <div id="wrap"><div><div class="card" id="cur"></div>
 <div class="card ctl" style="margin-top:12px" id="ctl"></div></div>
 <div><div class="card" id="join"></div><div class="card" style="margin-top:12px"><b>Players (<span id="np">0</span>)</b><div id="pl"></div></div></div></div>
-<script src="qrcode.js"></script><script src="shared.js"></script><script>
+<script src="shared.js"></script><script>
 const KEY=new URLSearchParams(location.search).get("key")||localStorage.hkey||"";localStorage.hkey=KEY;
 let st=null,t0=0,sig="";
 const act=async(action,value)=>{try{await api("/api/host",{key:KEY,action,value});load()}catch(e){alert(e.message)}};
@@ -27,5 +27,5 @@ function render(){const s=st,q=s.question;
 }
 setInterval(()=>{if(st&&st.question&&st.question.left!=null)$("#tm").textContent="⏱ "+Math.max(0,st.question.left-(performance.now()-t0)/1000).toFixed(1)+"s";else $("#tm").textContent=""},100);
 setInterval(load,1000);load();
-joinPanel($("#join")).then(i=>{if(i.ips.length>1){const sel=document.createElement("select");sel.innerHTML=i.ips.map(x=>`<option>${x}</option>`).join("");sel.onchange=()=>joinPanel($("#join"),sel.value).then(()=>$("#join").appendChild(sel));$("#join").appendChild(sel)}}).catch(()=>{});
+joinInfo($("#join")).catch(()=>{});
 </script></body></html>

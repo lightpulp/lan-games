@@ -1,8 +1,13 @@
 {
   "title": "College Quiz Booth",
-  "ssid": "MSD-GeneralAssembly",
-  "password": "ThisIsNotASecurePasswordw",
-  "security": "WPA",
   "port": 80,
-  "host_ip": ""
+  "mode": "hotspot",
+  "profiles": {
+    "hotspot": {
+      "ip": "192.168.137.1"
+    },
+    "router": {
+      "ip": "192.168.1.110"
+    }
+  }
 }

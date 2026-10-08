@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Kahoot-style booth quiz. Python 3.7+, standard library only, fully offline.
-  python server.py [port]        (port defaults to config.json -> 80, falls back to 8000)
-  python server.py --no-browser  (don't auto-open the host page)
+  python server.py                 (uses "mode" from config.json)
+  python server.py router          (or: hotspot)  -> pick the network without editing config
+  python server.py router 8000     (optional port; default from config.json, falls back to 8000)
+  python server.py --no-browser    (don't auto-open the host page)
 """
 import json, os, re, sys, socket, threading, time, secrets, webbrowser
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
@@ -9,7 +11,8 @@ from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 BASE = os.path.dirname(os.path.abspath(__file__))
 ROOT, QFILE, CFILE, DB = (os.path.join(BASE, p) for p in ("static", "questions.json", "config.json", "data.json"))
 ID_RE = re.compile(r"^\d{2}-\d{4}-\d{3}$")   # e.g. 24-2156-111
-cfg = {"title": "Quiz Booth", "ssid": "MyHotspot", "password": "12345678", "security": "WPA", "port": 80, "host_ip": ""}
+cfg = {"title": "Quiz Booth", "port": 80, "mode": "hotspot",
+       "profiles": {"hotspot": {"ip": "192.168.137.1"}, "router": {"ip": "192.168.0.100"}}}
 if os.path.exists(CFILE):
     cfg.update(json.load(open(CFILE, encoding="utf-8")))
 else:
@@ -147,6 +150,13 @@ def lan_ips():
     return sorted(ips, key=pref)
 
 
+def has_ip(ip):  # True only if this laptop really owns that address right now
+    try:
+        t = socket.socket(); t.bind((ip, 0)); t.close(); return True
+    except OSError:
+        return False
+
+
 PAGES = {"/": "/index.html", "/host": "/host.html", "/board": "/board.html"}
 
 
@@ -177,9 +187,8 @@ class Handler(SimpleHTTPRequestHandler):
             if path == "/api/host/state":
                 return self.reply(view(host=True)) if arg.get("key") == HOST_KEY else self.reply({"error": "bad key"}, 403)
             if path == "/api/info":
-                ips = lan_ips()
-                return self.reply({"ssid": cfg["ssid"], "password": cfg["password"], "security": cfg["security"],
-                                   "ips": ips, "ip": cfg["host_ip"] or (ips[0] if ips else "localhost"), "port": PORT})
+                return self.reply({"mode": MODE, "ip": IP, "port": PORT, "present": has_ip(IP), "others": lan_ips(),
+                                   "url": f"http://{IP}{'' if PORT == 80 else ':' + str(PORT)}/"})
         self.path = PAGES.get(path.rstrip("/") or "/", path)
         super().do_GET()
 
@@ -220,7 +229,16 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    argv = sys.argv[1:]
+    modes = cfg["profiles"]
+    MODE = next((x.split("=", 1)[1] for x in argv if x.startswith("--mode=")), cfg["mode"]).lower()
+    MODE = next((x.lower() for x in argv if x.lower() in modes), MODE)
+    if MODE not in modes:
+        sys.exit(f"Unknown mode '{MODE}'. Use one of: {', '.join(modes)}")
+    IP = modes[MODE]["ip"]
+    args = [x for x in argv if not x.startswith("--") and x.lower() not in modes]
+    if args and not args[0].isdigit():
+        sys.exit(f"Don't understand '{args[0]}'. Use a mode ({', '.join(modes)}) and/or a port number.")
     PORT = int(args[0]) if args else int(cfg["port"])
     try:
         srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
@@ -229,12 +247,14 @@ if __name__ == "__main__":
         srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     threading.Thread(target=ticker, daemon=True).start()
     sfx = "" if PORT == 80 else f":{PORT}"
-    ips = lan_ips()
-    print(f"\n  QUIZ SERVER RUNNING  ({len(questions)} questions)")
-    for ip in ips: print(f"  Players:      http://{ip}{sfx}/")
-    if not ips: print("  !! No network address found - is your hotspot on?")
+    print(f"\n  QUIZ SERVER RUNNING  ({len(questions)} questions)  MODE: {MODE.upper()}")
+    print(f"  Players open:  http://{IP}{sfx}/")
+    if not has_ip(IP):
+        print(f"\n  !! This laptop does not have {IP} right now.")
+        print(f"     Addresses found: {', '.join(lan_ips()) or 'none'}")
+        print(f"     Turn on the hotspot / connect to the router, or fix the IP in config.json.")
     host_url = f"http://localhost{sfx}/host?key={HOST_KEY}"
-    print(f"  Host:         {host_url}\n  Leaderboard:  http://localhost{sfx}/board\n")
+    print(f"\n  Host:          {host_url}\n  Leaderboard:   http://localhost{sfx}/board\n")
     if "--no-browser" not in sys.argv:
         threading.Timer(0.8, lambda: webbrowser.open(host_url)).start()
     try:
