@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Host console · AUF Quiz</title>
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/host.css">
+</head>
+<body class="host">
+<div id="login" class="login" hidden>
+  <form id="loginform" class="login-card" novalidate>
+    <div id="loginlock"></div>
+    <h1>Host console</h1>
+    <p>Enter the host password. It was shown in the server window the first time the quiz started.</p>
+    <label class="field"><span>Password</span><input class="input" id="pw" type="password" autocomplete="current-password"></label>
+    <p class="error-text" id="loginerr" role="alert"></p>
+    <button class="btn" id="loginbtn">Sign in</button>
+    <p class="hint">Forgot it? Stop the server and run <code>python server.py --reset-password</code>.</p>
+  </form>
+</div>
+
+<div id="shell" class="shell" hidden>
+  <aside class="side">
+    <div class="side-lock" id="sidelock"></div>
+    <nav class="nav" id="nav" aria-label="Host sections">
+      <button data-tab="live">Live game</button>
+      <button data-tab="rounds">Rounds</button>
+      <button data-tab="questions">Questions</button>
+      <button data-tab="players">Players</button>
+      <button data-tab="data">Data and transfer</button>
+      <button data-tab="settings">Settings</button>
+    </nav>
+    <div class="side-foot">
+      <a class="side-link" href="/board" target="_blank" rel="noopener">Open projector board</a>
+      <button class="side-link" id="logout" type="button">Sign out</button>
+    </div>
+  </aside>
+  <main class="main">
+    <section class="tab" id="tab-live"></section>
+    <section class="tab" id="tab-rounds" hidden></section>
+    <section class="tab" id="tab-questions" hidden></section>
+    <section class="tab" id="tab-players" hidden></section>
+    <section class="tab" id="tab-data" hidden></section>
+    <section class="tab" id="tab-settings" hidden></section>
+  </main>
+</div>
+
+<dialog id="dlg" class="dlg"><form method="dialog" id="dlgform"></form></dialog>
+<div class="toast" id="toast" role="status" hidden></div>
+<script src="/js/qrcode.js"></script>
+<script src="/js/common.js"></script>
+<script src="/js/host.js"></script>
+</body>
+</html>

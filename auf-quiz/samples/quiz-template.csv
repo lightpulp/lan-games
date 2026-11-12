@@ -1,0 +1,4 @@
+question,a,b,c,d,answer,time,points
+"What year was Angeles University Foundation founded?",1962,1971,1975,1990,a,20,1
+"True or false: the AUF varsity teams are called the Great Danes.",True,False,,,a,15,1
+"Which data structure follows First-In, First-Out?",Stack,Queue,Tree,Graph,b,20,2

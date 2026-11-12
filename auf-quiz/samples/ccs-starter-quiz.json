@@ -1,0 +1,186 @@
+{
+  "title": "CCS starter quiz (BSIT, BSCS, BMMA)",
+  "description": "15 questions from the original booth, 5 per program.",
+  "questions": [
+    {
+      "text": "[BSIT] What does HTML stand for?",
+      "options": {
+        "a": "HyperText Markup Language",
+        "b": "HighText Machine Language",
+        "c": "HyperTool Multi Language",
+        "d": "Home Text Markup Language"
+      },
+      "answer": "a",
+      "time": 15,
+      "points": 1
+    },
+    {
+      "text": "[BSIT] Which device forwards data between networks using IP addresses?",
+      "options": {
+        "a": "Keyboard",
+        "b": "Scanner",
+        "c": "Router",
+        "d": "Projector"
+      },
+      "answer": "c",
+      "time": 15,
+      "points": 1
+    },
+    {
+      "text": "[BSIT] What does SQL stand for?",
+      "options": {
+        "a": "Simple Question Language",
+        "b": "Structured Query Language",
+        "c": "Standard Quality Logic",
+        "d": "System Query List"
+      },
+      "answer": "b",
+      "time": 15,
+      "points": 1
+    },
+    {
+      "text": "[BSIT] Which of these is an operating system?",
+      "options": {
+        "a": "Python",
+        "b": "MySQL",
+        "c": "Photoshop",
+        "d": "Linux"
+      },
+      "answer": "d",
+      "time": 15,
+      "points": 1
+    },
+    {
+      "text": "[BSIT] What does the \"IP\" in IP address stand for?",
+      "options": {
+        "a": "Internal Process",
+        "b": "Integrated Program",
+        "c": "Internet Protocol",
+        "d": "Interface Port"
+      },
+      "answer": "c",
+      "time": 15,
+      "points": 1
+    },
+    {
+      "text": "[BSCS] Which data structure follows First-In, First-Out (FIFO)?",
+      "options": {
+        "a": "Stack",
+        "b": "Queue",
+        "c": "Tree",
+        "d": "Graph"
+      },
+      "answer": "b",
+      "time": 15,
+      "points": 1
+    },
+    {
+      "text": "[BSCS] What is the time complexity of binary search?",
+      "options": {
+        "a": "O(n)",
+        "b": "O(n²)",
+        "c": "O(1)",
+        "d": "O(log n)"
+      },
+      "answer": "d",
+      "time": 15,
+      "points": 1
+    },
+    {
+      "text": "[BSCS] Which of these is NOT a programming paradigm?",
+      "options": {
+        "a": "Hypertext",
+        "b": "Object-oriented",
+        "c": "Functional",
+        "d": "Procedural"
+      },
+      "answer": "a",
+      "time": 15,
+      "points": 1
+    },
+    {
+      "text": "[BSCS] What is the binary number 1010 in decimal?",
+      "options": {
+        "a": "8",
+        "b": "10",
+        "c": "12",
+        "d": "14"
+      },
+      "answer": "b",
+      "time": 15,
+      "points": 1
+    },
+    {
+      "text": "[BSCS] What do we call a function that calls itself?",
+      "options": {
+        "a": "Iteration",
+        "b": "Compilation",
+        "c": "Recursion",
+        "d": "Encapsulation"
+      },
+      "answer": "c",
+      "time": 15,
+      "points": 1
+    },
+    {
+      "text": "[BMMA] What do the letters in RGB stand for?",
+      "options": {
+        "a": "Red, Green, Blue",
+        "b": "Render, Graphics, Banner",
+        "c": "Raster, Gradient, Brush",
+        "d": "Red, Gold, Black"
+      },
+      "answer": "a",
+      "time": 15,
+      "points": 1
+    },
+    {
+      "text": "[BMMA] Which Adobe software is mainly used for editing photos?",
+      "options": {
+        "a": "Premiere Pro",
+        "b": "Illustrator",
+        "c": "After Effects",
+        "d": "Photoshop"
+      },
+      "answer": "d",
+      "time": 15,
+      "points": 1
+    },
+    {
+      "text": "[BMMA] Which of these is one of the 12 principles of animation?",
+      "options": {
+        "a": "Pixel mapping",
+        "b": "Squash and stretch",
+        "c": "Frame cropping",
+        "d": "Layer cloning"
+      },
+      "answer": "b",
+      "time": 15,
+      "points": 1
+    },
+    {
+      "text": "[BMMA] What is the standard frame rate of cinema films?",
+      "options": {
+        "a": "24 fps",
+        "b": "12 fps",
+        "c": "60 fps",
+        "d": "120 fps"
+      },
+      "answer": "a",
+      "time": 15,
+      "points": 1
+    },
+    {
+      "text": "[BMMA] Which color model is used for printing?",
+      "options": {
+        "a": "RGB",
+        "b": "HEX",
+        "c": "CMYK",
+        "d": "HSL"
+      },
+      "answer": "c",
+      "time": 15,
+      "points": 1
+    }
+  ]
+}
